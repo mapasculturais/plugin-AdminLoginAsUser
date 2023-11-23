@@ -2,6 +2,7 @@
 namespace AdminLoginAsUser;
 
 use MapasCulturais\App;
+use MapasCulturais\Exceptions\PermissionDenied;
 use MapasCulturais\i;
 use MapasCulturais\Plugin as MapasCulturaisPlugin;
 
@@ -27,11 +28,19 @@ class Plugin extends MapasCulturaisPlugin {
         });
 
         // substitui o $app->user pelo o usuário selecionado
-        $app->hook('App.get(user)', function(&$user) use($app) {
-            if($user->is('saasSuperAdmin') && isset($_SESSION['auth.asUserId'])) {
+        $app->hook('App.get(user)', function(&$current_user) use($app) {
+            if($current_user->is('admin') && isset($_SESSION['auth.asUserId'])) {
                 $app = App::i();
                 
                 $user = $app->repo('User')->find($_SESSION['auth.asUserId']);
+
+                if (!$current_user->is('saasSuperAdmin') && $user->is('saasSuperAdmin') ||
+                    !$current_user->is('saasAdmin') && $user->is('saasAdmin') ||
+                    !$current_user->is('superAdmin') && $user->is('superAdmin')) {
+                        throw new PermissionDenied($current_user, $user, i::__('trocar usuário'));
+                }
+
+                $current_user = $user;
             }
         });
 
@@ -39,23 +48,46 @@ class Plugin extends MapasCulturaisPlugin {
         $app->hook('GET(auth.asUserId)', function () {
             /** @var Auth $this */
             $app = App::i();
+
+            $finish = function () use($app) {
+                if ($app->request->isAjax()) {
+                    $this->json(true);
+                } else {
+                    $app->redirect($app->createUrl('panel', 'index'));
+                }
+            };
             
             $this->requireAuthentication();
             unset($_SESSION['auth.asUserId']);
-    
-            if (!$app->user->is('saasSuperAdmin')) {
+            
+            $current_user = $app->user;
+            if (!$current_user->is('admin')) {
                 $this->errorJson(i::__('Permissão negada'), 403);
             }
-            
-            if (($as_user_id = $this->data['id'] ?? false) && ($user = $app->repo('User')->find($as_user_id))) {
-                $_SESSION['auth.asUserId'] = $as_user_id;
+
+            $as_user_id = $this->data['id'] ?? false;
+
+            // se não foi enviado user_id, volta como administrador
+            if (!$as_user_id) {
+                $finish();
             }
+
+            $user = $app->repo('User')->find($as_user_id);
+
+            // se não foi achou o usuário do user_id, volta como administrador
+            if(!$user) {
+                $finish();
+            }
+
+            if (!$current_user->is('saasSuperAdmin') && $user->is('saasSuperAdmin') ||
+                !$current_user->is('saasAdmin') && $user->is('saasAdmin') ||
+                !$current_user->is('superAdmin') && $user->is('superAdmin')) {
+                    $this->errorJson(i::__('Permissão negada: Você não pode assumir um perfil com permissão superior a sua'), 403);
+            }
+
+            $_SESSION['auth.asUserId'] = $as_user_id;
     
-            if ($app->request->isAjax()) {
-                $this->json(true);
-            } else {
-                $app->redirect($app->createUrl('panel', 'index'));
-            }
+            $finish();
         });
     }
 
