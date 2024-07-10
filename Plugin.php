@@ -14,11 +14,16 @@ class Plugin extends MapasCulturaisPlugin {
         // adiciona o menu "Voltar como administrador"
         $app->hook('panel.nav', function (&$group) use ($app) {
             if (isset($_SESSION['auth.asUserId'])) {
-                $group['more']['items'][] = [
-                    'route' => 'auth/asUserId',
-                    'icon' => 'user-config',
-                    'label' => i::__('Voltar como administrador')
-                ];
+                foreach($group['user']['items'] as $key => $item) {
+                    if($item['route'] == 'auth/logout') {
+                        $group['user']['items'][$key] = [
+                            'route' => 'auth/asUserId',
+                            'icon' => 'logout',
+                            'label' => i::__('Voltar como administrador')
+                        ];
+                        break;
+                    }
+                }
             }
         });
 
@@ -43,17 +48,35 @@ class Plugin extends MapasCulturaisPlugin {
                 $current_user = $user;
             }
         });
+        $app->hook('view.render(<<*>>):before', function () use($app) {
+            /** @var \MapasCulturais\Themes\BaseV2\Theme $this */
+            if (isset($_SESSION['auth.asUserId'])) {
+                $this->enqueueStyle('app-v2', 'admin-login-as-user', 'css/admin-login-as-user.css');
+
+            }
+        });
+
+        $app->hook('template(<<*>>.main-header):after', function () {
+            /** @var \MapasCulturais\Themes\BaseV2\Theme $this */
+            if(isset($_SESSION['auth.asUserId'])) {
+                $this->part('admin-login-as-user--select');
+            }
+        });
 
         // rota que define o usuário selecionado
         $app->hook('GET(auth.asUserId)', function () {
             /** @var Auth $this */
             $app = App::i();
 
-            $finish = function () use($app) {
+            $finish = function ($as_user_id) use($app) {
                 if ($app->request->isAjax()) {
                     $this->json(true);
                 } else {
-                    $app->redirect($app->createUrl('panel', 'index'));
+                    if($as_user_id) {
+                        $app->redirect($app->createUrl('panel', 'index'));
+                    } else {
+                        $app->redirect($app->createUrl('panel', 'user-management'));
+                    }
                 }
             };
             
@@ -69,14 +92,14 @@ class Plugin extends MapasCulturaisPlugin {
 
             // se não foi enviado user_id, volta como administrador
             if (!$as_user_id) {
-                $finish();
+                $finish($as_user_id);
             }
 
             $user = $app->repo('User')->find($as_user_id);
 
             // se não foi achou o usuário do user_id, volta como administrador
             if(!$user) {
-                $finish();
+                $finish($as_user_id);
             }
 
             if (!$current_user->is('saasSuperAdmin') && $user->is('saasSuperAdmin') ||
@@ -87,7 +110,7 @@ class Plugin extends MapasCulturaisPlugin {
 
             $_SESSION['auth.asUserId'] = $as_user_id;
     
-            $finish();
+            $finish($as_user_id);
         });
     }
 
