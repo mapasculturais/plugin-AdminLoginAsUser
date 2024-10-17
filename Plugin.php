@@ -32,6 +32,11 @@ class Plugin extends MapasCulturaisPlugin {
             $this->part('admin-login-as-user--link');
         });
 
+        // adiciona o botão "logar" na listagem de agentes
+        $app->hook('template(agent.single.entity-actions--primary):end', function () {
+                $this->part('admin-login-as-user--link');
+        });
+
         // substitui o $app->user pelo o usuário selecionado
         $app->hook('App.get(user)', function(&$current_user) use($app) {
             if($current_user->is('admin') && isset($_SESSION['auth.asUserId'])) {
