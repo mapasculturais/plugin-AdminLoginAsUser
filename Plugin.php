@@ -93,6 +93,16 @@ class Plugin extends MapasCulturaisPlugin {
             }
 
             $as_user_id = $this->data['id'] ?? false;
+            $as_agent_id = $this->data['agent_id'] ?? null;
+
+            if(!$as_user_id && !$as_agent_id){
+                $finish($as_user_id);
+            }
+
+
+            if(!$as_user_id && !$as_agent_id){
+                $finish($as_user_id);
+            }
 
             // se não foi enviado user_id, volta como administrador
             if (!$as_user_id) {
@@ -114,7 +124,7 @@ class Plugin extends MapasCulturaisPlugin {
 
             $_SESSION['auth.asUserId'] = $as_user_id;
     
-            $finish($as_user_id);
+            $finish($as_user_id, $as_agent_id);
         });
     }
 
