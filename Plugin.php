@@ -55,10 +55,7 @@ class Plugin extends MapasCulturaisPlugin {
         });
         $app->hook('view.render(<<*>>):before', function () use($app) {
             /** @var \MapasCulturais\Themes\BaseV2\Theme $this */
-            if (isset($_SESSION['auth.asUserId'])) {
                 $this->enqueueStyle('app-v2', 'admin-login-as-user', 'css/admin-login-as-user.css');
-
-            }
         });
 
         $app->hook('template(<<*>>.main-header):after', function () {
@@ -72,12 +69,14 @@ class Plugin extends MapasCulturaisPlugin {
         $app->hook('GET(auth.asUserId)', function () {
             /** @var Auth $this */
             $app = App::i();
-
-            $finish = function ($as_user_id) use($app) {
+            $finish = function ($as_user_id, $as_agent_id = null) use($app) {
                 if ($app->request->isAjax()) {
                     $this->json(true);
                 } else {
                     if($as_user_id) {
+                        if($as_agent_id){
+                            $app->redirect($app->createUrl('agent', 'single', [$as_agent_id]));
+                        }
                         $app->redirect($app->createUrl('panel', 'index'));
                     } else {
                         $app->redirect($app->createUrl('panel', 'user-management'));
