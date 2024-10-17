@@ -11,3 +11,12 @@
     top:10px;
     z-index:1001;
 }
+
+.login {
+    background-color: var(--mc-gray-100); 
+    color: var(--mc-black);
+}
+
+.login .iconify {
+    font-size: 1rem;
+}
